@@ -6,8 +6,6 @@ target/
 
 # Local uploads and environment files
 /uploads/
-/.env
-/.env.*
 
 ### STS ###
 .apt_generated
