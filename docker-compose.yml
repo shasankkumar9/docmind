@@ -18,6 +18,7 @@ services:
 
     volumes:
       - docmind-data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
 
 volumes:
   docmind-data:

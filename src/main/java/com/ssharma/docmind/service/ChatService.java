@@ -32,6 +32,10 @@ public class ChatService {
                         question
                 );
 
+        if (chunks.isEmpty()) {
+            return "I couldn't find any relevant information in the uploaded document.";
+        }
+
         String prompt =
                 promptService.buildPrompt(question, chunks);
 

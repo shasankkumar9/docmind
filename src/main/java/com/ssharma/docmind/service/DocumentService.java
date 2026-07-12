@@ -1,12 +1,12 @@
 package com.ssharma.docmind.service;
 
+import com.ssharma.docmind.config.StorageProperties;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
 import com.ssharma.docmind.parser.DocumentParser;
 import com.ssharma.docmind.parser.ParserService;
 import com.ssharma.docmind.repository.DocumentChunkRepository;
 import com.ssharma.docmind.repository.DocumentRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,26 +28,26 @@ public class DocumentService {
     private final ParserService parserService;
     private final ChunkService chunkService;
     private final EmbeddingService embeddingService;
-
-    @Value("${app.upload.directory}")
-    private String uploadDirectory;
+    private final StorageProperties storageProperties;
 
     public DocumentService(DocumentRepository documentRepository,
                            DocumentChunkRepository documentChunkRepository,
                            ParserService parserService,
                            ChunkService chunkService,
-                           EmbeddingService embeddingService) {
+                           EmbeddingService embeddingService,
+                           StorageProperties storageProperties) {
 
         this.documentRepository = documentRepository;
         this.documentChunkRepository = documentChunkRepository;
         this.parserService = parserService;
         this.chunkService = chunkService;
         this.embeddingService = embeddingService;
+        this.storageProperties = storageProperties;
     }
 
     public Document upload(MultipartFile file) throws IOException {
 
-        Path uploadPath = Paths.get(uploadDirectory);
+        Path uploadPath = Paths.get(storageProperties.getDirectory());
 
         Files.createDirectories(uploadPath);
 

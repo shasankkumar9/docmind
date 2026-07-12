@@ -1,8 +1,8 @@
 package com.ssharma.docmind.service;
 
+import com.ssharma.docmind.config.RagProperties;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,11 +11,11 @@ import java.util.stream.IntStream;
 @Service
 public class ChunkService {
 
-    @Value("${app.chunk.size}")
-    private int chunkSize;
+    private final RagProperties ragProperties;
 
-    @Value("${app.chunk.overlap}")
-    private int chunkOverlap;
+    public ChunkService(RagProperties ragProperties) {
+        this.ragProperties = ragProperties;
+    }
 
     public List<DocumentChunk> createChunks(Document document, String text) {
 
@@ -48,7 +48,7 @@ public class ChunkService {
 
         while (start < text.length()) {
 
-            int end = Math.min(start + chunkSize, text.length());
+            int end = Math.min(start + ragProperties.getChunkSize(), text.length());
 
             chunks.add(text.substring(start, end));
 
@@ -56,7 +56,7 @@ public class ChunkService {
                 break;
             }
 
-            start = end - chunkOverlap;
+            start = end - ragProperties.getChunkOverlap();
         }
 
         return chunks;
