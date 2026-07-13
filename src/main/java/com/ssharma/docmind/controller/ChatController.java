@@ -3,23 +3,20 @@ package com.ssharma.docmind.controller;
 import com.ssharma.docmind.dto.ChatRequest;
 import com.ssharma.docmind.dto.ChatResponse;
 import com.ssharma.docmind.service.ChatService;
-import com.ssharma.docmind.service.RetrievalService;
+import com.ssharma.docmind.service.QueryExpansionService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/chat")
 public class ChatController {
 
     private final ChatService chatService;
-    private final RetrievalService retrievalService;
+    private final QueryExpansionService queryExpansionService;
 
-    public ChatController(ChatService chatService, RetrievalService retrievalService) {
+    public ChatController(ChatService chatService, QueryExpansionService queryExpansionService) {
         this.chatService = chatService;
-        this.retrievalService = retrievalService;
+        this.queryExpansionService = queryExpansionService;
     }
 
     @PostMapping
@@ -31,6 +28,13 @@ public class ChatController {
         );
 
         return new ChatResponse(response);
+
+    }
+
+    @GetMapping("/expand")
+    public String expand(@RequestParam String question) {
+
+        return queryExpansionService.expand(question);
 
     }
 

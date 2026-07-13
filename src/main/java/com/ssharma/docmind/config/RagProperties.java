@@ -13,6 +13,16 @@ public class RagProperties {
 
     private int chunkOverlap;
 
+    private boolean queryExpansionEnabled;
+
+    public boolean isQueryExpansionEnabled() {
+        return queryExpansionEnabled;
+    }
+
+    public void setQueryExpansionEnabled(boolean queryExpansionEnabled) {
+        this.queryExpansionEnabled = queryExpansionEnabled;
+    }
+
     public int getTopK() {
         return topK;
     }

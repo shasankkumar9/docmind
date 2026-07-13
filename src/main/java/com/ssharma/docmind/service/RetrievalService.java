@@ -53,13 +53,36 @@ public class RetrievalService {
 
         LOGGER.info("Retrieved {} candidate chunks", results.size());
 
+        if (!results.isEmpty()) {
+
+            double min = results.stream()
+                    .mapToDouble(SearchResult::distance)
+                    .min()
+                    .orElse(0);
+
+            double max = results.stream()
+                    .mapToDouble(SearchResult::distance)
+                    .max()
+                    .orElse(0);
+
+            double avg = results.stream()
+                    .mapToDouble(SearchResult::distance)
+                    .average()
+                    .orElse(0);
+
+            LOGGER.info("Distance Statistics");
+            LOGGER.info("Minimum : {}", min);
+            LOGGER.info("Average : {}", avg);
+            LOGGER.info("Maximum : {}", max);
+
+        }
+
         results.forEach(result ->
                 LOGGER.info(
                         "Chunk {} -> Distance {}",
                         result.chunkId(),
                         result.distance()
-                )
-        );
+                ));
 
         List<SearchResult> filteredResults = results.stream()
                 .filter(result ->
@@ -91,6 +114,31 @@ public class RetrievalService {
                                 DocumentChunk::getId,
                                 Function.identity()
                         ));
+
+        results.forEach(result -> {
+
+            DocumentChunk chunk = chunkMap.get(result.chunkId());
+
+            String preview = "";
+
+            if (chunk != null) {
+
+                preview = chunk.getContent();
+
+                if (preview.length() > 100) {
+                    preview = preview.substring(0, 100) + "...";
+                }
+
+            }
+
+            LOGGER.info(
+                    "Distance={} | Chunk={} | {}",
+                    result.distance(),
+                    result.chunkId(),
+                    preview
+            );
+
+        });
 
         List<DocumentChunk> chunks = filteredResults.stream()
                 .map(result -> chunkMap.get(result.chunkId()))
