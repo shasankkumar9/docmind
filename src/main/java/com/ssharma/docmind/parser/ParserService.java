@@ -1,5 +1,6 @@
 package com.ssharma.docmind.parser;
 
+import com.ssharma.docmind.exception.UnsupportedFileTypeException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,8 +20,9 @@ public class ParserService {
                 .filter(parser -> parser.supports(contentType))
                 .findFirst()
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Unsupported file type: " + contentType));
+                        new UnsupportedFileTypeException(
+                                "Unsupported content type: " + contentType
+                        ));
 
     }
 

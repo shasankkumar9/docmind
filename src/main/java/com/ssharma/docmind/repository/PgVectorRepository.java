@@ -8,15 +8,15 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public class EmbeddingStore {
+public class PgVectorRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public EmbeddingStore(JdbcTemplate jdbcTemplate) {
+    public PgVectorRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void save(long chunkId, float[] embedding) {
+    public void saveEmbedding(long chunkId, float[] embedding) {
 
         String vector = toVector(embedding);
 
@@ -49,9 +49,9 @@ public class EmbeddingStore {
 
     }
 
-    public List<SearchResult> findNearest(UUID documentId,
-                                          float[] embedding,
-                                          int limit) {
+    public List<SearchResult> findNearestChunks(UUID documentId,
+                                                float[] embedding,
+                                                int limit) {
 
         String vector = toVector(embedding);
 

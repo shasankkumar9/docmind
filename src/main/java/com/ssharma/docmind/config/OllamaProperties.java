@@ -3,36 +3,9 @@ package com.ssharma.docmind.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.ollama")
-public class OllamaProperties {
-
-    private String baseUrl;
-
-    private String chatModel;
-
-    private String embeddingModel;
-
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    public String getChatModel() {
-        return chatModel;
-    }
-
-    public void setChatModel(String chatModel) {
-        this.chatModel = chatModel;
-    }
-
-    public String getEmbeddingModel() {
-        return embeddingModel;
-    }
-
-    public void setEmbeddingModel(String embeddingModel) {
-        this.embeddingModel = embeddingModel;
-    }
-
+public record OllamaProperties(
+        String baseUrl,
+        String chatModel,
+        String embeddingModel
+) {
 }

@@ -1,10 +1,13 @@
 package com.ssharma.docmind.controller;
 
-import com.ssharma.docmind.dto.UploadDocumentResponse;
+import com.ssharma.docmind.dto.UploadResponse;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.service.DocumentService;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -20,13 +23,13 @@ public class DocumentController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public UploadDocumentResponse upload(
+    public UploadResponse upload(
             @RequestParam("file") MultipartFile file
     ) throws IOException {
 
         Document document = documentService.upload(file);
 
-        return new UploadDocumentResponse(
+        return new UploadResponse(
                 document.getId(),
                 document.getOriginalFileName(),
                 "Document uploaded successfully."

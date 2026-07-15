@@ -1,10 +1,12 @@
 package com.ssharma.docmind.service;
 
 import com.ssharma.docmind.config.RagProperties;
+import com.ssharma.docmind.dto.RetrievedChunk;
 import com.ssharma.docmind.dto.SearchResult;
 import com.ssharma.docmind.entity.DocumentChunk;
+import com.ssharma.docmind.exception.RetrievalException;
 import com.ssharma.docmind.repository.DocumentChunkRepository;
-import com.ssharma.docmind.repository.EmbeddingStore;
+import com.ssharma.docmind.repository.PgVectorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,130 +25,209 @@ public class RetrievalService {
             LoggerFactory.getLogger(RetrievalService.class);
 
     private final EmbeddingService embeddingService;
-    private final EmbeddingStore embeddingStore;
+    private final PgVectorRepository pgVectorRepository;
     private final DocumentChunkRepository chunkRepository;
     private final RagProperties ragProperties;
 
     public RetrievalService(EmbeddingService embeddingService,
-                            EmbeddingStore embeddingStore,
+                            PgVectorRepository pgVectorRepository,
                             DocumentChunkRepository chunkRepository,
                             RagProperties ragProperties) {
 
         this.embeddingService = embeddingService;
-        this.embeddingStore = embeddingStore;
+        this.pgVectorRepository = pgVectorRepository;
         this.chunkRepository = chunkRepository;
         this.ragProperties = ragProperties;
     }
 
-    public List<DocumentChunk> retrieve(UUID documentId, String question) {
+    /**
+     * Retrieves the most relevant chunks for the supplied question.
+     */
+    public List<RetrievedChunk> retrieve(UUID documentId,
+                                         String question) {
+
+        long start = System.currentTimeMillis();
 
         LOGGER.info("Searching document {}", documentId);
-        LOGGER.info("Question: {}", question);
 
-        float[] embedding = embeddingService.embed(question);
+        try {
 
-        List<SearchResult> results = embeddingStore.findNearest(
-                documentId,
-                embedding,
-                ragProperties.getTopK()
-        );
+            float[] embedding = embeddingService.embed(question);
 
-        LOGGER.info("Retrieved {} candidate chunks", results.size());
+            List<SearchResult> searchResults =
+                    pgVectorRepository.findNearestChunks(
+                            documentId,
+                            embedding,
+                            ragProperties.topK()
+                    );
 
-        if (!results.isEmpty()) {
+            logSearchStatistics(searchResults);
 
-            double min = results.stream()
-                    .mapToDouble(SearchResult::distance)
-                    .min()
-                    .orElse(0);
+            List<SearchResult> filteredResults =
+                    filterResults(searchResults);
 
-            double max = results.stream()
-                    .mapToDouble(SearchResult::distance)
-                    .max()
-                    .orElse(0);
+            if (filteredResults.isEmpty()) {
 
-            double avg = results.stream()
-                    .mapToDouble(SearchResult::distance)
-                    .average()
-                    .orElse(0);
+                LOGGER.warn(
+                        "No relevant chunks found for document {}",
+                        documentId
+                );
 
-            LOGGER.info("Distance Statistics");
-            LOGGER.info("Minimum : {}", min);
-            LOGGER.info("Average : {}", avg);
-            LOGGER.info("Maximum : {}", max);
+                return List.of();
+
+            }
+
+            List<RetrievedChunk> retrievedChunks =
+                    loadChunks(documentId, filteredResults);
+
+            LOGGER.info(
+                    "Retrieved {} chunks in {} ms",
+                    retrievedChunks.size(),
+                    System.currentTimeMillis() - start
+            );
+
+            retrievedChunks.forEach(chunk ->
+                    LOGGER.debug(
+                            "Similarity={} | Chunk={} | {}",
+                            String.format("%.4f", chunk.similarity()),
+                            chunk.chunk().getChunkIndex(),
+                            preview(chunk.chunk().getContent())
+                    )
+            );
+
+            return retrievedChunks;
+
+        } catch (RetrievalException ex) {
+
+            throw ex;
+
+        } catch (Exception ex) {
+
+            throw new RetrievalException(
+                    "Failed to retrieve document chunks.",
+                    ex
+            );
 
         }
 
-        results.forEach(result ->
-                LOGGER.info(
-                        "Chunk {} -> Distance {}",
-                        result.chunkId(),
-                        result.distance()
-                ));
+    }
 
-        List<SearchResult> filteredResults = results.stream()
+    /**
+     * Applies the configured similarity threshold.
+     */
+    private List<SearchResult> filterResults(List<SearchResult> results) {
+
+        List<SearchResult> filtered = results.stream()
                 .filter(result ->
-                        result.distance() <= ragProperties.getSimilarityThreshold())
+                        result.distance()
+                                <= ragProperties.similarityThreshold())
                 .toList();
 
         LOGGER.info(
-                "After similarity threshold ({}): {} chunks",
-                ragProperties.getSimilarityThreshold(),
-                filteredResults.size()
+                "{} chunks passed similarity threshold ({})",
+                filtered.size(),
+                ragProperties.similarityThreshold()
         );
 
-        if (filteredResults.isEmpty()) {
+        return filtered;
 
-            LOGGER.warn("No chunks passed the similarity threshold.");
+    }
 
-            return List.of();
+    /**
+     * Loads the retrieved chunks from the database.
+     */
+    private List<RetrievedChunk> loadChunks(UUID documentId,
+                                            List<SearchResult> results) {
 
-        }
-
-        List<Long> ids = filteredResults.stream()
+        List<Long> ids = results.stream()
                 .map(SearchResult::chunkId)
                 .toList();
 
         Map<Long, DocumentChunk> chunkMap =
-                chunkRepository.findByDocumentIdAndIdIn(documentId, ids)
+                chunkRepository.findByDocumentIdAndIdIn(
+                                documentId,
+                                ids
+                        )
                         .stream()
                         .collect(Collectors.toMap(
                                 DocumentChunk::getId,
                                 Function.identity()
                         ));
 
-        results.forEach(result -> {
+        return results.stream()
+                .map(result -> {
 
-            DocumentChunk chunk = chunkMap.get(result.chunkId());
+                    DocumentChunk chunk =
+                            chunkMap.get(result.chunkId());
 
-            String preview = "";
+                    if (chunk == null) {
+                        return null;
+                    }
 
-            if (chunk != null) {
+                    return new RetrievedChunk(
+                            chunk,
+                            result.distance()
+                    );
 
-                preview = chunk.getContent();
-
-                if (preview.length() > 100) {
-                    preview = preview.substring(0, 100) + "...";
-                }
-
-            }
-
-            LOGGER.info(
-                    "Distance={} | Chunk={} | {}",
-                    result.distance(),
-                    result.chunkId(),
-                    preview
-            );
-
-        });
-
-        List<DocumentChunk> chunks = filteredResults.stream()
-                .map(result -> chunkMap.get(result.chunkId()))
+                })
                 .filter(Objects::nonNull)
                 .toList();
 
-        LOGGER.info("Returning {} chunks to PromptService", chunks.size());
-
-        return chunks;
     }
+
+    /**
+     * Logs vector search statistics.
+     */
+    private void logSearchStatistics(List<SearchResult> results) {
+
+        LOGGER.info(
+                "Retrieved {} candidate chunks",
+                results.size()
+        );
+
+        if (results.isEmpty()) {
+            return;
+        }
+
+        double min = results.stream()
+                .mapToDouble(SearchResult::distance)
+                .min()
+                .orElse(0);
+
+        double avg = results.stream()
+                .mapToDouble(SearchResult::distance)
+                .average()
+                .orElse(0);
+
+        double max = results.stream()
+                .mapToDouble(SearchResult::distance)
+                .max()
+                .orElse(0);
+
+        LOGGER.debug(
+                "Distance statistics - min: {}, avg: {}, max: {}",
+                min,
+                avg,
+                max
+        );
+
+    }
+
+    /**
+     * Creates a short preview for logging.
+     */
+    private String preview(String text) {
+
+        if (text == null) {
+            return "";
+        }
+
+        text = text.replaceAll("\\s+", " ").trim();
+
+        return text.length() <= 100
+                ? text
+                : text.substring(0, 100) + "...";
+
+    }
+
 }

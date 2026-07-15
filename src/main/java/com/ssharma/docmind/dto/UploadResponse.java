@@ -2,16 +2,16 @@ package com.ssharma.docmind.dto;
 
 import java.util.UUID;
 
-public class UploadDocumentResponse {
+public class UploadResponse {
 
     private UUID id;
     private String originalFileName;
     private String message;
 
-    public UploadDocumentResponse() {
+    public UploadResponse() {
     }
 
-    public UploadDocumentResponse(UUID id, String originalFileName, String message) {
+    public UploadResponse(UUID id, String originalFileName, String message) {
         this.id = id;
         this.originalFileName = originalFileName;
         this.message = message;
@@ -29,7 +29,8 @@ public class UploadDocumentResponse {
         return originalFileName;
     }
 
-    public void setOriginalFileName(String originalFileName) {}
+    public void setOriginalFileName(String originalFileName) {
+    }
 
     public String getMessage() {
         return message;

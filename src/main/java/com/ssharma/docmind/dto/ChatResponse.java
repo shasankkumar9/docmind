@@ -1,22 +1,12 @@
 package com.ssharma.docmind.dto;
 
-public class ChatResponse {
+import java.util.List;
 
-    private String response;
+public record ChatResponse(
 
-    public ChatResponse() {
-    }
+        String response,
 
-    public ChatResponse(String response) {
-        this.response = response;
-    }
+        List<SourceDto> sources
 
-    public String getResponse() {
-        return response;
-    }
-
-    public void setResponse(String response) {
-        this.response = response;
-    }
-
+) {
 }

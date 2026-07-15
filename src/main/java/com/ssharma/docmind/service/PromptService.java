@@ -1,48 +1,43 @@
 package com.ssharma.docmind.service;
 
-import com.ssharma.docmind.entity.DocumentChunk;
+import com.ssharma.docmind.dto.RetrievedChunk;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class PromptService {
 
-    public String buildPrompt(String question,
-                              List<DocumentChunk> chunks) {
+    public String buildPrompt(List<RetrievedChunk> chunks,
+                              String question) {
 
-        String context = chunks.stream()
-                .map(DocumentChunk::getContent)
-                .collect(Collectors.joining("\n\n"));
+        StringBuilder context = new StringBuilder();
+
+        for (RetrievedChunk chunk : chunks) {
+
+            context.append(chunk.chunk().getContent())
+                    .append("\n\n");
+
+        }
 
         return """
-                You are a document question-answering assistant.
+                You are an AI assistant answering questions from an uploaded document.
                 
-                Use ONLY the provided context.
+                Rules:
                 
-                Do NOT use your own knowledge.
+                - Answer ONLY using the supplied context.
+                - If the answer is not present, reply exactly:
+                  "I couldn't find any relevant information in the uploaded document."
+                - Do not hallucinate.
+                - Keep the answer concise.
                 
-                If the answer is not present in the context,
-                respond exactly with:
-                
-                I couldn't find that information in the uploaded documents.
-                
-                ------------------------
-                CONTEXT
-                ------------------------
+                Context:
                 
                 %s
                 
-                ------------------------
-                QUESTION
-                ------------------------
+                Question:
                 
                 %s
-                
-                ------------------------
-                ANSWER
-                ------------------------
                 """.formatted(context, question);
 
     }

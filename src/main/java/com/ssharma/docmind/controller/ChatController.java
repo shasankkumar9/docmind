@@ -3,38 +3,30 @@ package com.ssharma.docmind.controller;
 import com.ssharma.docmind.dto.ChatRequest;
 import com.ssharma.docmind.dto.ChatResponse;
 import com.ssharma.docmind.service.ChatService;
-import com.ssharma.docmind.service.QueryExpansionService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/chat")
 public class ChatController {
 
     private final ChatService chatService;
-    private final QueryExpansionService queryExpansionService;
 
-    public ChatController(ChatService chatService, QueryExpansionService queryExpansionService) {
+    public ChatController(ChatService chatService) {
         this.chatService = chatService;
-        this.queryExpansionService = queryExpansionService;
     }
 
     @PostMapping
-    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+    public ChatResponse chat(
+            @Valid @RequestBody ChatRequest request) {
 
-        String response = chatService.chat(
+        return chatService.chat(
                 request.getDocumentId(),
                 request.getMessage()
         );
-
-        return new ChatResponse(response);
-
-    }
-
-    @GetMapping("/expand")
-    public String expand(@RequestParam String question) {
-
-        return queryExpansionService.expand(question);
 
     }
 

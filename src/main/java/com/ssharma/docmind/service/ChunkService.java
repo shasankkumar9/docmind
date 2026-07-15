@@ -5,11 +5,15 @@ import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.regex.Pattern;
 
 @Service
 public class ChunkService {
+
+    private static final Pattern SENTENCE_PATTERN =
+            Pattern.compile("(?<=[.!?])\\s+");
 
     private final RagProperties ragProperties;
 
@@ -17,49 +21,87 @@ public class ChunkService {
         this.ragProperties = ragProperties;
     }
 
-    public List<DocumentChunk> createChunks(Document document, String text) {
+    public List<DocumentChunk> createChunks(Document document,
+                                            String text) {
 
-        if (text == null || text.isBlank()) {
-            return List.of();
-        }
+        text = normalize(text);
 
-        List<String> chunks = splitText(text);
+        List<String> sentences = splitIntoSentences(text);
 
-        return IntStream.range(0, chunks.size())
-                .mapToObj(index -> {
+        return buildChunks(document, sentences);
 
-                    DocumentChunk chunk = new DocumentChunk();
-
-                    chunk.setDocument(document);
-                    chunk.setChunkIndex(index);
-                    chunk.setContent(chunks.get(index));
-
-                    return chunk;
-
-                })
-                .toList();
     }
 
-    private List<String> splitText(String text) {
+    private String normalize(String text) {
 
-        List<String> chunks = new java.util.ArrayList<>();
+        return text
+                .replace("\r\n", "\n")
+                .replace("\r", "\n")
+                .replaceAll("[ \\t]+", " ")
+                .replaceAll("\\n{3,}", "\n\n")
+                .trim();
 
-        int start = 0;
+    }
 
-        while (start < text.length()) {
+    private List<String> splitIntoSentences(String text) {
 
-            int end = Math.min(start + ragProperties.getChunkSize(), text.length());
+        return SENTENCE_PATTERN
+                .splitAsStream(text)
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
 
-            chunks.add(text.substring(start, end));
+    }
 
-            if (end >= text.length()) {
-                break;
+    private List<DocumentChunk> buildChunks(Document document,
+                                            List<String> sentences) {
+
+        List<DocumentChunk> chunks = new ArrayList<>();
+
+        int chunkIndex = 0;
+        int sentenceIndex = 0;
+
+        while (sentenceIndex < sentences.size()) {
+
+            StringBuilder builder = new StringBuilder();
+
+            int startSentence = sentenceIndex;
+
+            while (sentenceIndex < sentences.size()) {
+
+                String sentence = sentences.get(sentenceIndex);
+
+                if (!builder.isEmpty()
+                        && builder.length() + sentence.length()
+                        > ragProperties.chunkSize()) {
+
+                    break;
+
+                }
+
+                builder.append(sentence).append(" ");
+
+                sentenceIndex++;
+
             }
 
-            start = end - ragProperties.getChunkOverlap();
+            DocumentChunk chunk = new DocumentChunk();
+
+            chunk.setDocument(document);
+            chunk.setChunkIndex(chunkIndex++);
+            chunk.setContent(builder.toString().trim());
+
+            chunks.add(chunk);
+
+            sentenceIndex = Math.max(
+                    startSentence + 1,
+                    sentenceIndex - ragProperties.overlapSentences()
+            );
+
         }
 
         return chunks;
+
     }
 
 }

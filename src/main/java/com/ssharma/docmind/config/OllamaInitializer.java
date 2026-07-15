@@ -26,7 +26,7 @@ public class OllamaInitializer {
         this.properties = properties;
 
         this.restClient = RestClient.builder()
-                .baseUrl(properties.getBaseUrl())
+                .baseUrl(properties.baseUrl())
                 .build();
     }
 
@@ -39,10 +39,12 @@ public class OllamaInitializer {
 
         try {
 
-            response = restClient.get()
+            @SuppressWarnings("unchecked")
+            Map<String, Object> tempResponse = restClient.get()
                     .uri("/api/tags")
                     .retrieve()
                     .body(Map.class);
+            response = tempResponse;
 
         } catch (Exception ex) {
 
@@ -53,8 +55,12 @@ public class OllamaInitializer {
                     
                     Expected URL:
                     %s
-                    """.formatted(properties.getBaseUrl()), ex);
+                    """.formatted(properties.baseUrl()), ex);
 
+        }
+
+        if (response == null) {
+            throw new IllegalStateException("Ollama API response is null");
         }
 
         Set<String> installedModels = getInstalledModels(response);
@@ -64,8 +70,8 @@ public class OllamaInitializer {
         installedModels.forEach(model ->
                 LOGGER.info("  - {}", model));
 
-        String chatModel = normalize(properties.getChatModel());
-        String embeddingModel = normalize(properties.getEmbeddingModel());
+        String chatModel = normalize(properties.chatModel());
+        String embeddingModel = normalize(properties.embeddingModel());
 
         if (!installedModels.contains(chatModel)) {
 

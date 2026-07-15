@@ -1,4 +1,0 @@
-package com.ssharma.docmind.repository;
-
-public interface ConversationRepository {
-}
