@@ -17,18 +17,12 @@ public class Document {
     private String originalFileName;
 
     @Column(nullable = false)
-    private String storedFileName;
-
-    @Column(nullable = false)
     private String fileType;
 
     @Column(nullable = false)
     private Long fileSize;
 
     @Column(nullable = false)
-    private String filePath;
-
-    @Column(nullable =false)
     private LocalDateTime uploadedAt;
 
     public Document() {
@@ -50,14 +44,6 @@ public class Document {
         this.originalFileName = originalFileName;
     }
 
-    public String getStoredFileName() {
-        return storedFileName;
-    }
-
-    public void setStoredFileName(String storedFileName) {
-        this.storedFileName = storedFileName;
-    }
-
     public String getFileType() {
         return fileType;
     }
@@ -72,14 +58,6 @@ public class Document {
 
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
     }
 
     public LocalDateTime getUploadedAt() {

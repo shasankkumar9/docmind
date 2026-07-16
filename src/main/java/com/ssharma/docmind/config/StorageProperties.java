@@ -2,10 +2,9 @@ package com.ssharma.docmind.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "app.upload")
+@ConfigurationProperties(prefix = "app.storage")
 public record StorageProperties(
-
-        String directory
-
+        String directory,
+        boolean persistFiles
 ) {
 }

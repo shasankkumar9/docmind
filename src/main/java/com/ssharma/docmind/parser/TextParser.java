@@ -1,39 +1,36 @@
 package com.ssharma.docmind.parser;
 
 import com.ssharma.docmind.exception.ParsingException;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @Component
-public class PdfParser implements DocumentParser {
+public class TextParser implements DocumentParser {
 
     @Override
     public boolean supports(String contentType) {
 
-        return "application/pdf".equalsIgnoreCase(contentType);
+        return "text/plain".equalsIgnoreCase(contentType);
 
     }
 
     @Override
     public String extractText(MultipartFile file) {
 
-        try (PDDocument document =
-                     Loader.loadPDF(file.getBytes())) {
+        try {
 
-            PDFTextStripper stripper =
-                    new PDFTextStripper();
-
-            return stripper.getText(document);
+            return new String(
+                    file.getBytes(),
+                    StandardCharsets.UTF_8
+            );
 
         } catch (IOException ex) {
 
             throw new ParsingException(
-                    "Failed to parse PDF document.",
+                    "Failed to parse text document.",
                     ex
             );
 

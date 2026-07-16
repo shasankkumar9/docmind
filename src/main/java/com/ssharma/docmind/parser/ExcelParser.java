@@ -4,11 +4,9 @@ import com.ssharma.docmind.exception.ParsingException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 @Component
 public class ExcelParser implements DocumentParser {
@@ -22,10 +20,10 @@ public class ExcelParser implements DocumentParser {
     }
 
     @Override
-    public String extractText(Path file) {
+    public String extractText(MultipartFile file) {
 
-        try (InputStream inputStream = Files.newInputStream(file);
-             Workbook workbook = new XSSFWorkbook(inputStream)) {
+        try (Workbook workbook =
+                     new XSSFWorkbook(file.getInputStream())) {
 
             DataFormatter formatter = new DataFormatter();
 

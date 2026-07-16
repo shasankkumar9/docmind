@@ -3,11 +3,9 @@ package com.ssharma.docmind.parser;
 import com.ssharma.docmind.exception.ParsingException;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 @Component
 public class DocxParser implements DocumentParser {
@@ -21,10 +19,10 @@ public class DocxParser implements DocumentParser {
     }
 
     @Override
-    public String extractText(Path file) {
+    public String extractText(MultipartFile file) {
 
-        try (InputStream inputStream = Files.newInputStream(file);
-             XWPFDocument document = new XWPFDocument(inputStream)) {
+        try (XWPFDocument document =
+                     new XWPFDocument(file.getInputStream())) {
 
             StringBuilder text = new StringBuilder();
 
@@ -46,7 +44,6 @@ public class DocxParser implements DocumentParser {
                 table.getRows().forEach(row -> {
 
                     row.getTableCells().forEach(cell ->
-
                             text.append(cell.getText())
                                     .append(" | ")
                     );

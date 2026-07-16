@@ -1,9 +1,7 @@
 package com.ssharma.docmind.service;
 
-import com.ssharma.docmind.config.StorageProperties;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
-import com.ssharma.docmind.exception.ParsingException;
 import com.ssharma.docmind.exception.ValidationException;
 import com.ssharma.docmind.parser.DocumentParser;
 import com.ssharma.docmind.parser.ParserService;
@@ -15,14 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class DocumentService {
@@ -35,24 +28,21 @@ public class DocumentService {
     private final ParserService parserService;
     private final ChunkService chunkService;
     private final EmbeddingService embeddingService;
-    private final StorageProperties storageProperties;
 
     public DocumentService(DocumentRepository documentRepository,
                            DocumentChunkRepository documentChunkRepository,
                            ParserService parserService,
                            ChunkService chunkService,
-                           EmbeddingService embeddingService,
-                           StorageProperties storageProperties) {
+                           EmbeddingService embeddingService) {
 
         this.documentRepository = documentRepository;
         this.documentChunkRepository = documentChunkRepository;
         this.parserService = parserService;
         this.chunkService = chunkService;
         this.embeddingService = embeddingService;
-        this.storageProperties = storageProperties;
     }
 
-    public Document upload(MultipartFile file) {
+    public Document upload(MultipartFile file) throws IOException {
 
         long start = System.currentTimeMillis();
 
@@ -60,82 +50,51 @@ public class DocumentService {
             throw new ValidationException("Uploaded file is empty.", null);
         }
 
-        try {
+        LOGGER.info("Uploading document: {}", file.getOriginalFilename());
 
-            LOGGER.info("Uploading document: {}", file.getOriginalFilename());
+        Document document = new Document();
 
-            Path uploadPath = Paths.get(storageProperties.directory());
+        document.setOriginalFileName(file.getOriginalFilename());
+        document.setFileType(file.getContentType());
+        document.setFileSize(file.getSize());
+        document.setUploadedAt(LocalDateTime.now(Clock.systemDefaultZone()));
 
-            Files.createDirectories(uploadPath);
+        Document savedDocument = documentRepository.save(document);
 
-            String originalFileName = file.getOriginalFilename();
+        LOGGER.info("Document saved with id={}", savedDocument.getId());
 
-            String extension = "";
+        DocumentParser parser =
+                parserService.getParser(file.getContentType());
 
-            if (originalFileName != null && originalFileName.contains(".")) {
-                extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            }
+        String extractedText =
+                parser.extractText(file);
 
-            String storedFileName = UUID.randomUUID() + extension;
+        LOGGER.info(
+                "Extracted {} characters",
+                extractedText.length()
+        );
 
-            Path destination = uploadPath.resolve(storedFileName);
+        List<DocumentChunk> chunks =
+                chunkService.createChunks(
+                        savedDocument,
+                        extractedText
+                );
 
-            Files.copy(
-                    file.getInputStream(),
-                    destination,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
+        LOGGER.info(
+                "Generated {} chunks",
+                chunks.size()
+        );
 
-            Document document = new Document();
+        documentChunkRepository.saveAll(chunks);
 
-            document.setOriginalFileName(originalFileName);
-            document.setStoredFileName(storedFileName);
-            document.setFileType(file.getContentType());
-            document.setFileSize(file.getSize());
-            document.setFilePath(destination.toString());
-            document.setUploadedAt(LocalDateTime.now(Clock.systemDefaultZone()));
+        embeddingService.generateEmbeddings(chunks);
 
-            Document savedDocument = documentRepository.save(document);
+        LOGGER.info(
+                "Upload completed in {} ms",
+                System.currentTimeMillis() - start
+        );
 
-            LOGGER.info("Document saved with id={}", savedDocument.getId());
-
-            DocumentParser parser =
-                    parserService.getParser(file.getContentType());
-
-            String extractedText =
-                    parser.extractText(destination);
-
-            LOGGER.info("Extracted {} characters",
-                    extractedText.length());
-
-            List<DocumentChunk> documentChunks =
-                    chunkService.createChunks(
-                            savedDocument,
-                            extractedText
-                    );
-
-            LOGGER.info("Generated {} chunks",
-                    documentChunks.size());
-
-            documentChunkRepository.saveAll(documentChunks);
-
-            embeddingService.generateEmbeddings(documentChunks);
-
-            LOGGER.info(
-                    "Upload completed in {} ms",
-                    System.currentTimeMillis() - start
-            );
-
-            return savedDocument;
-
-        } catch (IOException ex) {
-
-            throw new ParsingException(
-                    "Failed to process uploaded document.",
-                    ex
-            );
-
-        }
+        return savedDocument;
 
     }
 
