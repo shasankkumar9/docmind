@@ -1,5 +1,6 @@
 package com.ssharma.docmind.controller;
 
+import com.ssharma.docmind.dto.DocumentSummaryDto;
 import com.ssharma.docmind.dto.UploadResponse;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.service.DocumentService;
@@ -7,13 +8,11 @@ import com.ssharma.docmind.swagger.UploadApiResponses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @Tag(
         name = "Documents",
@@ -52,6 +51,13 @@ public class DocumentController {
                 document.getOriginalFileName(),
                 "Document uploaded successfully."
         );
+
+    }
+
+    @GetMapping
+    public List<DocumentSummaryDto> getDocuments() {
+
+        return documentService.getDocuments();
 
     }
 

@@ -11,10 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -28,16 +25,19 @@ public class RetrievalService {
     private final PgVectorRepository pgVectorRepository;
     private final DocumentChunkRepository chunkRepository;
     private final RagProperties ragProperties;
+    private final DocumentReconstructionService reconstructionService;
 
     public RetrievalService(EmbeddingService embeddingService,
                             PgVectorRepository pgVectorRepository,
                             DocumentChunkRepository chunkRepository,
-                            RagProperties ragProperties) {
+                            RagProperties ragProperties,
+                            DocumentReconstructionService reconstructionService) {
 
         this.embeddingService = embeddingService;
         this.pgVectorRepository = pgVectorRepository;
         this.chunkRepository = chunkRepository;
         this.ragProperties = ragProperties;
+        this.reconstructionService = reconstructionService;
     }
 
     /**
@@ -78,7 +78,7 @@ public class RetrievalService {
             }
 
             List<RetrievedChunk> retrievedChunks =
-                    loadChunks(documentId, filteredResults);
+                    new ArrayList<>(loadChunks(documentId, filteredResults));
 
             LOGGER.info(
                     "Retrieved {} chunks in {} ms",
@@ -92,6 +92,12 @@ public class RetrievalService {
                             String.format("%.4f", chunk.similarity()),
                             chunk.chunk().getChunkIndex(),
                             preview(chunk.chunk().getContent())
+                    )
+            );
+
+            retrievedChunks.sort(
+                    Comparator.comparingInt(
+                            chunk -> chunk.chunk().getChunkIndex()
                     )
             );
 
@@ -227,6 +233,12 @@ public class RetrievalService {
         return text.length() <= 100
                 ? text
                 : text.substring(0, 100) + "...";
+
+    }
+
+    public String retrieveFullDocument(UUID documentId) {
+
+        return reconstructionService.reconstruct(documentId);
 
     }
 

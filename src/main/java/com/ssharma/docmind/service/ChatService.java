@@ -5,6 +5,8 @@ import com.ssharma.docmind.dto.RetrievedChunk;
 import com.ssharma.docmind.dto.SourceDto;
 import com.ssharma.docmind.exception.ChatException;
 import com.ssharma.docmind.service.llm.LlmService;
+import com.ssharma.docmind.service.retrieval.RetrievalMode;
+import com.ssharma.docmind.service.retrieval.RetrievalModeDetector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,69 +21,60 @@ public class ChatService {
             LoggerFactory.getLogger(ChatService.class);
 
     private static final String NO_INFORMATION_FOUND =
-            "I couldn't find any relevant information in the uploaded document.";
+            "I couldn't find enough information in the uploaded document to answer that confidently.";
 
     private final RetrievalService retrievalService;
+    private final DocumentReconstructionService reconstructionService;
     private final PromptService promptService;
     private final LlmService llmService;
+    private final RetrievalModeDetector retrievalModeDetector;
 
     public ChatService(RetrievalService retrievalService,
+                       DocumentReconstructionService reconstructionService,
                        PromptService promptService,
-                       LlmService llmService) {
+                       LlmService llmService,
+                       RetrievalModeDetector retrievalModeDetector) {
 
         this.retrievalService = retrievalService;
+        this.reconstructionService = reconstructionService;
         this.promptService = promptService;
         this.llmService = llmService;
+        this.retrievalModeDetector = retrievalModeDetector;
+
     }
 
     /**
-     * Answers a question using the supplied document.
+     * Answers a question using the uploaded document.
      */
     public ChatResponse chat(UUID documentId,
                              String question) {
 
         long start = System.currentTimeMillis();
 
-        LOGGER.info("Generating answer for document {}", documentId);
+        LOGGER.info("Generating response for document {}", documentId);
 
         try {
 
-            List<RetrievedChunk> retrievedChunks =
-                    retrievalService.retrieve(documentId, question);
+            RetrievalMode retrievalMode =
+                    retrievalModeDetector.detect(question);
 
-            if (retrievedChunks.isEmpty()) {
+            LOGGER.info("Retrieval Mode: {}", retrievalMode);
 
-                LOGGER.info("No relevant chunks found.");
+            LOGGER.info("Question: {}", question);
 
-                return new ChatResponse(
-                        NO_INFORMATION_FOUND,
-                        List.of()
+            return switch (retrievalMode) {
+
+                case SEMANTIC -> answerWithSemanticSearch(
+                        documentId,
+                        question
                 );
 
-            }
+                case FULL_DOCUMENT -> answerWithFullDocument(
+                        documentId,
+                        question
+                );
 
-            String prompt =
-                    promptService.buildPrompt(
-                            retrievedChunks,
-                            question
-                    );
-
-            LOGGER.debug("Prompt:\n{}", prompt);
-
-            String answer = generateAnswer(prompt);
-
-            List<SourceDto> sources =
-                    buildSources(retrievedChunks);
-
-            LOGGER.info(
-                    "Chat completed in {} ms",
-                    System.currentTimeMillis() - start
-            );
-
-            return new ChatResponse(
-                    answer,
-                    sources
-            );
+            };
 
         } catch (ChatException ex) {
 
@@ -94,23 +87,102 @@ public class ChatService {
                     ex
             );
 
+        } finally {
+
+            LOGGER.info(
+                    "Completed in {} ms",
+                    System.currentTimeMillis() - start
+            );
+
         }
 
     }
 
-    /**
-     * Calls the LLM.
-     */
-    private String generateAnswer(String prompt) {
+    private ChatResponse answerWithSemanticSearch(
+            UUID documentId,
+            String question) {
 
-        return llmService.generate(prompt);
+        List<RetrievedChunk> chunks =
+                retrievalService.retrieve(
+                        documentId,
+                        question
+                );
+
+        LOGGER.info("Retrieved {} chunks", chunks.size());
+
+        chunks.forEach(chunk ->
+                LOGGER.info(
+                        "Chunk={} Distance={} Preview={}",
+                        chunk.chunk().getChunkIndex(),
+                        String.format("%.4f", chunk.similarity()),
+                        preview(chunk.chunk().getContent())
+                )
+        );
+
+        if (chunks.isEmpty()) {
+
+            return new ChatResponse(
+                    NO_INFORMATION_FOUND,
+                    List.of()
+            );
+
+        }
+
+        String context =
+                chunks.stream()
+                        .map(chunk -> chunk.chunk().getContent())
+                        .reduce(
+                                "",
+                                (a, b) ->
+                                        a + "\n\n---------------------\n\n" + b
+                        );
+
+        String prompt =
+                promptService.buildPrompt(
+                        context,
+                        question
+                );
+
+        String answer =
+                llmService.generate(prompt);
+
+        return new ChatResponse(
+                answer,
+                buildSources(chunks)
+        );
 
     }
 
+    private ChatResponse answerWithFullDocument(
+            UUID documentId,
+            String question) {
 
-    /**
-     * Builds source citations for the response.
-     */
+        String context =
+                retrievalService.retrieveFullDocument(
+                        documentId
+                );
+
+        LOGGER.info(
+                "Using full document context ({} characters)",
+                context.length()
+        );
+
+        String prompt =
+                promptService.buildPrompt(
+                        context,
+                        question
+                );
+
+        String answer =
+                llmService.generate(prompt);
+
+        return new ChatResponse(
+                answer,
+                List.of()
+        );
+
+    }
+
     private List<SourceDto> buildSources(
             List<RetrievedChunk> chunks) {
 
@@ -129,7 +201,7 @@ public class ChatService {
     }
 
     /**
-     * Creates a short preview of a chunk.
+     * Creates a short preview.
      */
     private String preview(String text) {
 

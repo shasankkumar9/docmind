@@ -6,7 +6,15 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "documents")
+@Table(
+        name = "documents",
+        indexes = {
+                @Index(
+                        name = "idx_document_checksum",
+                        columnList = "checksum"
+                )
+        }
+)
 public class Document {
 
     @Id
@@ -21,6 +29,9 @@ public class Document {
 
     @Column(nullable = false)
     private Long fileSize;
+
+    @Column(nullable = false, length = 64)
+    private String checksum;
 
     @Column(nullable = false)
     private LocalDateTime uploadedAt;
@@ -58,6 +69,14 @@ public class Document {
 
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
+    }
+
+    public String getChecksum() {
+        return checksum;
+    }
+
+    public void setChecksum(String checksum) {
+        this.checksum = checksum;
     }
 
     public LocalDateTime getUploadedAt() {

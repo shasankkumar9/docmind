@@ -1,5 +1,6 @@
 package com.ssharma.docmind.service;
 
+import com.ssharma.docmind.dto.DocumentSummaryDto;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
 import com.ssharma.docmind.exception.ValidationException;
@@ -28,18 +29,21 @@ public class DocumentService {
     private final ParserService parserService;
     private final ChunkService chunkService;
     private final EmbeddingService embeddingService;
+    private final ChecksumService checksumService;
 
     public DocumentService(DocumentRepository documentRepository,
                            DocumentChunkRepository documentChunkRepository,
                            ParserService parserService,
                            ChunkService chunkService,
-                           EmbeddingService embeddingService) {
+                           EmbeddingService embeddingService,
+                           ChecksumService checksumService) {
 
         this.documentRepository = documentRepository;
         this.documentChunkRepository = documentChunkRepository;
         this.parserService = parserService;
         this.chunkService = chunkService;
         this.embeddingService = embeddingService;
+        this.checksumService = checksumService;
     }
 
     public Document upload(MultipartFile file) throws IOException {
@@ -48,6 +52,25 @@ public class DocumentService {
 
         if (file.isEmpty()) {
             throw new ValidationException("Uploaded file is empty.", null);
+        }
+
+        String checksum =
+                checksumService.sha256(file);
+
+        Document existing =
+                documentRepository
+                        .findByChecksum(checksum)
+                        .orElse(null);
+
+        if (existing != null) {
+
+            LOGGER.info(
+                    "Duplicate upload detected. Returning existing document {}",
+                    existing.getId()
+            );
+
+            return existing;
+
         }
 
         LOGGER.info("Uploading document: {}", file.getOriginalFilename());
@@ -95,6 +118,27 @@ public class DocumentService {
         );
 
         return savedDocument;
+
+    }
+
+    public List<DocumentSummaryDto> getDocuments() {
+
+        return documentRepository.findAllByOrderByUploadedAtDesc()
+                .stream()
+                .map(document -> new DocumentSummaryDto(
+
+                        document.getId(),
+
+                        document.getOriginalFileName(),
+
+                        document.getFileType(),
+
+                        document.getFileSize(),
+
+                        document.getUploadedAt()
+
+                ))
+                .toList();
 
     }
 

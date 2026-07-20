@@ -1,44 +1,70 @@
 package com.ssharma.docmind.service;
 
-import com.ssharma.docmind.dto.RetrievedChunk;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class PromptService {
 
-    public String buildPrompt(List<RetrievedChunk> chunks,
+    public String buildPrompt(String context,
                               String question) {
 
-        StringBuilder context = new StringBuilder();
-
-        for (RetrievedChunk chunk : chunks) {
-
-            context.append(chunk.chunk().getContent())
-                    .append("\n\n");
-
-        }
-
         return """
-                You are an AI assistant answering questions from an uploaded document.
+                You are DocMind AI, an intelligent document assistant.
                 
-                Rules:
+                Your responsibility is to help users understand uploaded documents.
                 
-                - Answer ONLY using the supplied context.
-                - If the answer is not present, reply exactly:
-                  "I couldn't find any relevant information in the uploaded document."
-                - Do not hallucinate.
-                - Keep the answer concise.
+                Determine the user's intent from the question itself.
                 
-                Context:
+                The user may ask you to:
+                - answer factual questions
+                - summarize documents
+                - explain concepts
+                - analyze information
+                - review documents
+                - compare information within the document
+                - extract structured information
+                - infer reasonable conclusions supported by the document
+                
+                Instructions:
+                
+                1. Base every answer ONLY on the provided document context.
+                
+                2. If the answer is explicitly stated,
+                answer confidently.
+                
+                3. If the answer requires reasoning,
+                reason ONLY from the provided context.
+                
+                4. Clearly distinguish facts from inferences.
+                
+                5. If the document does not contain enough information,
+                reply:
+                
+                "I couldn't find enough information in the uploaded document to answer that confidently."
+                
+                6. Never invent information.
+                
+                7. Do not use outside knowledge unless explicitly requested.
+                
+                8. Keep responses concise but complete.
+                
+                9. Use bullet points whenever appropriate.
+                
+                --------------------------------------------------
+                
+                Document Context:
                 
                 %s
                 
-                Question:
+                --------------------------------------------------
+                
+                User Question:
                 
                 %s
-                """.formatted(context, question);
+                
+                Answer:
+                """
+                .formatted(context, question);
 
     }
 

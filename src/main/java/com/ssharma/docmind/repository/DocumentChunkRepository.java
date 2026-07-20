@@ -20,4 +20,6 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
             List<Long> ids
     );
 
+    List<DocumentChunk> findByDocumentIdOrderByChunkIndex(UUID documentId);
+
 }
