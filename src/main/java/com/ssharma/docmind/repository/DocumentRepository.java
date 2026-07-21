@@ -1,6 +1,7 @@
 package com.ssharma.docmind.repository;
 
 import com.ssharma.docmind.entity.Document;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,4 +13,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findAllByOrderByUploadedAtDesc();
 
     Optional<Document> findByChecksum(String checksum);
+
+    void deleteById(@NonNull UUID id);
+
+    boolean existsById(@NonNull UUID id);
 }

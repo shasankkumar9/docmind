@@ -2,42 +2,15 @@ package com.ssharma.docmind.dto;
 
 import java.util.UUID;
 
-public class UploadResponse {
+public record UploadResponse(
 
-    private UUID id;
-    private String originalFileName;
-    private String message;
+        UUID id,
 
-    public UploadResponse() {
-    }
+        String originalFileName,
 
-    public UploadResponse(UUID id, String originalFileName, String message) {
-        this.id = id;
-        this.originalFileName = originalFileName;
-        this.message = message;
-    }
+        boolean alreadyExists,
 
-    public UUID getId() {
-        return id;
-    }
+        String message
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getOriginalFileName() {
-        return originalFileName;
-    }
-
-    public void setOriginalFileName(String originalFileName) {
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
+) {
 }

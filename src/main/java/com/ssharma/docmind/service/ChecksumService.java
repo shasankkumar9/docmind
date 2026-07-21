@@ -11,7 +11,7 @@ import java.security.NoSuchAlgorithmException;
 @Service
 public class ChecksumService {
 
-    public String sha256(MultipartFile file) {
+    public String calculate(MultipartFile file) {
 
         try {
 

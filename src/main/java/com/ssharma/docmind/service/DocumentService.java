@@ -1,6 +1,7 @@
 package com.ssharma.docmind.service;
 
 import com.ssharma.docmind.dto.DocumentSummaryDto;
+import com.ssharma.docmind.dto.UploadResult;
 import com.ssharma.docmind.entity.Document;
 import com.ssharma.docmind.entity.DocumentChunk;
 import com.ssharma.docmind.exception.ValidationException;
@@ -11,12 +12,14 @@ import com.ssharma.docmind.repository.DocumentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class DocumentService {
@@ -46,7 +49,7 @@ public class DocumentService {
         this.checksumService = checksumService;
     }
 
-    public Document upload(MultipartFile file) throws IOException {
+    public UploadResult upload(MultipartFile file) throws IOException {
 
         long start = System.currentTimeMillis();
 
@@ -54,26 +57,27 @@ public class DocumentService {
             throw new ValidationException("Uploaded file is empty.", null);
         }
 
-        String checksum =
-                checksumService.sha256(file);
+        LOGGER.info("Uploading document: {}", file.getOriginalFilename());
 
-        Document existing =
-                documentRepository
-                        .findByChecksum(checksum)
-                        .orElse(null);
+        String checksum = checksumService.calculate(file);
+
+        Document existing = documentRepository
+                .findByChecksum(checksum)
+                .orElse(null);
 
         if (existing != null) {
 
             LOGGER.info(
-                    "Duplicate upload detected. Returning existing document {}",
+                    "Duplicate document detected. Returning existing document id={}",
                     existing.getId()
             );
 
-            return existing;
+            return new UploadResult(
+                    existing,
+                    true
+            );
 
         }
-
-        LOGGER.info("Uploading document: {}", file.getOriginalFilename());
 
         Document document = new Document();
 
@@ -81,10 +85,15 @@ public class DocumentService {
         document.setFileType(file.getContentType());
         document.setFileSize(file.getSize());
         document.setUploadedAt(LocalDateTime.now(Clock.systemDefaultZone()));
+        document.setChecksum(checksum);
 
-        Document savedDocument = documentRepository.save(document);
+        Document savedDocument =
+                documentRepository.save(document);
 
-        LOGGER.info("Document saved with id={}", savedDocument.getId());
+        LOGGER.info(
+                "Document saved with id={}",
+                savedDocument.getId()
+        );
 
         DocumentParser parser =
                 parserService.getParser(file.getContentType());
@@ -117,10 +126,12 @@ public class DocumentService {
                 System.currentTimeMillis() - start
         );
 
-        return savedDocument;
+        return new UploadResult(
+                savedDocument,
+                false
+        );
 
     }
-
     public List<DocumentSummaryDto> getDocuments() {
 
         return documentRepository.findAllByOrderByUploadedAtDesc()
@@ -139,6 +150,28 @@ public class DocumentService {
 
                 ))
                 .toList();
+
+    }
+
+    @Transactional
+    public void delete(UUID documentId) {
+
+        LOGGER.info("Deleting document {}", documentId);
+
+        if (!documentRepository.existsById(documentId)) {
+
+            throw new ValidationException(
+                    "Document not found.",
+                    null
+            );
+
+        }
+
+        documentChunkRepository.deleteByDocumentId(documentId);
+
+        documentRepository.deleteById(documentId);
+
+        LOGGER.info("Document {} deleted successfully.", documentId);
 
     }
 
